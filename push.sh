@@ -29,7 +29,6 @@ exit_with_error()
     exit 1
 }
 
-
 # Function to generate a random number
 generate_random_number()
 {
@@ -60,7 +59,6 @@ display_help()
     echo "$0 your_tag test.py -m \"Your message\""
     echo "$0 your_tag test.py -p"
     echo "$0 your_tag test.py -a"
-    echo "$0 your_tag test.py -f -m \"Your message\" -p"
     exit 0
 }
 
@@ -76,32 +74,27 @@ do
     case $arg in
         -h|--help)
             display_help
-            ;;
+            ;;  
         -f|--format)
             format_code=true
-            shift
             ;;
         -m|--message)
-            commit_message="$2"
-            shift
-            shift
+            commit_message="$4"
             ;;
         -p|--push)
             push_changes=true
-            shift
             ;;
         -a|--all)
             do_all=true
-            shift
             ;;
         *)
-        echo "${RED}Unknown option: $1 ${NC}"
             ;;
     esac
 done
 
 if [ "$#" -lt 2 ]; then
-    exit_with_error "Usage: $0 <tag_name> <source_files> [-f, --format] [-m, --message] [-p, --push] [-a, --all] [-h, --help]"
+    echo "Usage: $0 <tag_name> <source_files> [-f, --format] [-m, --message] [-p, --push] [-a, --all] [-h, --help]"
+    exit 1
 fi
 
 # Generate a random number
@@ -109,8 +102,14 @@ random_number=$(generate_random_number)
 
 # Format the source code with clang-format if the option is enabled
 if [ "$format_code" = true ]; then
-    if ! clang-format -i "$2"; then
+    if clang-format --version | grep -q "not found" ; then
         exit_with_error "[-] Failed to format the source code. Please make sure that clang-format is installed."
+    fi
+    if clang-format --dry-run "$2" | grep -q "Try: 'clang-format --help'" ; then
+        exit_with_error "[-] Failed to format the source code."
+    fi
+    if ! clang-format -i "$2" > /dev/null 2>&1; then
+        exit_with_error "[-] Failed to format the source code."
     fi
 fi
 
@@ -130,33 +129,36 @@ if [ "$push_changes" = false ] || [ "$do_all" = true ]; then
     git add -f * || exit_with_error "[-] Failed to add files to git."
 
     # Commit with an explicit message
+    echo -e "${GREEN}Git log:${NC}"
     git commit -m "$commit_message" || exit_with_error "[-] Failed to commit changes."
 
     # Create a Git tag with the given name and the random number as a message
     git tag -a $1 -m "$random_number" || exit_with_error "$[-] Failed to create a git tag."
-    echo -e "${GREEN}Git tag created: $1${NC}"
 fi
 
 # Push the changes and tags if the push option is enabled or if the all option is enabled
 if [ "$push_changes" = true ] || [ "$do_all" = true ]; then
+    if git push --dry-run 2>&1 | grep -q "Everything up-to-date"; then
+        echo -e "${RED}[-] No changes to push.${NC}"
+        exit 1
+    fi
     git push || exit_with_error "[-] Failed to push changes."
+    echo ""
     git push --follow-tags || exit_with_error "[-] Failed to push tags."
 fi
 
 # ====================================================================================================== #
 
-clear
-
-echo -e "\t${GREEN}Git log:${NC}"
+# Display the results
 git log | head -3
 echo ""
-echo -e "\t${GREEN}Tag:${NC} $1"
-echo -e "\t${GREEN}Random number:${NC} $random_number"
-echo -e "\t${GREEN}Source files:${NC} $2"
-echo -e "\t${GREEN}Commit message:${NC} $commit_message"
-echo -e "\t${GREEN}Push changes:${NC} $push_changes"
-echo -e "\t${GREEN}Format code:${NC} $format_code"
-echo -e "\t${GREEN}All operations:${NC} $do_all"
+echo -e "${GREEN}Tag:${NC} $1"
+echo -e "${GREEN}Random number:${NC}$random_number"
+echo -e "${GREEN}Source files:${NC} $2"
+echo -e "${GREEN}Commit message:${NC} $commit_message"
+echo -e "${GREEN}Push changes:${NC} $push_changes"
+echo -e "${GREEN}Format code:${NC} $format_code"
+echo -e "${GREEN}All operations:${NC} $do_all"
 echo ""
-echo -e "\t${GREEN}Script executed successfully.${NC}"
-echo ""
+echo -e "${GREEN}Script executed successfully.${NC}"
+exit 0
