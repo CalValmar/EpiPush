@@ -1,9 +1,5 @@
 #!/bin/bash
 
-# Define color codes
-GREEN='\033[0;32m'
-NC='\033[0m' # No Color
-
 # oooooooooooo ooooooooo.   ooooo      ooooooooo.   ooooo     ooo  .oooooo..o ooooo   ooooo 
 # `888'     `8 `888   `Y88. `888'      `888   `Y88. `888'     `8' d8P'    `Y8 `888'   `888' 
 #  888          888   .d88'  888        888   .d88'  888       8  Y88bo.       888     888  
@@ -15,18 +11,16 @@ NC='\033[0m' # No Color
 # Author: Valmar
 # Github: github.com/calvalmar                                                                                        
 #
-# This script is used to add, commit, tag, and push changes to a Git repository.                                                          
+# This script is used to add, commit, tag, and push changes to a Git repository in one command.                                                          
 #
 # Usage: ./push.sh <tag_name> <source_files> [-f, --format] [-m, --message] [-p, --push] [-a, --all] [-h, --help]
 
-# ====================================================================================================== #
+# ============================================================================================================== #
 
-
-# Function to generate a random number
-generate_random_number()
-{
-    od -N3 -An -i /dev/urandom
-}
+# Define colors
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
 
 # Function to display an error message and exit the program
 exit_with_error()
@@ -35,10 +29,23 @@ exit_with_error()
     exit 1
 }
 
+
+# Function to generate a random number
+generate_random_number()
+{
+    od -N3 -An -i /dev/urandom
+}
+
 # Function to display help
 display_help()
 {
     echo -e "${GREEN}Usage: $0 <tag_name> <source_files> [-f, --format] [-m, --message] [-p, --push] [-a, --all] [-h, --help]${NC}"
+    echo ""
+    echo "[!] If no options are specified, the script will add, commit, and tag the source files"
+    echo ""
+    echo "Arguments:"
+    echo "<tag_name>       The name of the tag to create"
+    echo "<source_files>   The source files to add, commit, and push"
     echo ""
     echo "Options:"
     echo "-f, --format    Format the source code with clang-format"
@@ -48,19 +55,20 @@ display_help()
     echo "-h, --help      Display this help message"
     echo ""
     echo "Examples:"
-    echo "$0 tag test.py -f" 
-    echo "$0 tag test.py -m \"Initial commit\""
-    echo "$0 tag test.py -p"
-    echo "$0 tag test.py -a"
-    echo "$0 tag test.py -f -m \"Initial commit\" -p"
+    echo "$0 your_tag test.py" 
+    echo "$0 your_tag test.py -f" 
+    echo "$0 your_tag test.py -m \"Your message\""
+    echo "$0 your_tag test.py -p"
+    echo "$0 your_tag test.py -a"
+    echo "$0 your_tag test.py -f -m \"Your message\" -p"
     exit 0
 }
 
 # Initialize variables
+do_all=false
 format_code=false
 push_changes=false
 commit_message="Code formatting"
-do_all=false
 
 # Check arguments
 for arg in "$@"
@@ -87,6 +95,7 @@ do
             shift
             ;;
         *)
+        echo "${RED}Unknown option: $1 ${NC}"
             ;;
     esac
 done
@@ -101,7 +110,7 @@ random_number=$(generate_random_number)
 # Format the source code with clang-format if the option is enabled
 if [ "$format_code" = true ]; then
     if ! clang-format -i "$2"; then
-        exit_with_error "[-] Failed to format the source code."
+        exit_with_error "[-] Failed to format the source code. Please make sure that clang-format is installed."
     fi
 fi
 
@@ -124,7 +133,7 @@ if [ "$push_changes" = false ] || [ "$do_all" = true ]; then
     git commit -m "$commit_message" || exit_with_error "[-] Failed to commit changes."
 
     # Create a Git tag with the given name and the random number as a message
-    git tag -a $1 -m "$random_number" || exit_with_error "[-] Failed to create a git tag."
+    git tag -a $1 -m "$random_number" || exit_with_error "$[-] Failed to create a git tag."
     echo -e "${GREEN}Git tag created: $1${NC}"
 fi
 
@@ -138,8 +147,16 @@ fi
 
 clear
 
-echo -e "${GREEN}Git log:${NC}"
+echo -e "\t${GREEN}Git log:${NC}"
 git log | head -3
 echo ""
-echo -e "${GREEN}Done !${NC}"
+echo -e "\t${GREEN}Tag:${NC} $1"
+echo -e "\t${GREEN}Random number:${NC} $random_number"
+echo -e "\t${GREEN}Source files:${NC} $2"
+echo -e "\t${GREEN}Commit message:${NC} $commit_message"
+echo -e "\t${GREEN}Push changes:${NC} $push_changes"
+echo -e "\t${GREEN}Format code:${NC} $format_code"
+echo -e "\t${GREEN}All operations:${NC} $do_all"
+echo ""
+echo -e "\t${GREEN}Script executed successfully.${NC}"
 echo ""
